@@ -1,36 +1,90 @@
 "use client";
 
+import api from "@/lib/api";
 import Button from "@/shared/components/Button";
+import { AxiosError } from "axios";
 import { useState } from "react";
 
 export default function HomeOrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("balcao");
   const [status, setStatus] = useState<null | "success" | "error">(null);
-  const urlWebhook = process.env.NEXT_PUBLIC_URL_WEBHOOK_N8N;
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  function extractCheckoutUrl(responseData: unknown): string | null {
+    if (!responseData || typeof responseData !== "object") return null;
+
+    const source = responseData as Record<string, unknown>;
+    const nested =
+      source.data && typeof source.data === "object"
+        ? (source.data as Record<string, unknown>)
+        : null;
+    const payment =
+      source.payment && typeof source.payment === "object"
+        ? (source.payment as Record<string, unknown>)
+        : null;
+    const nestedPayment =
+      nested?.payment && typeof nested.payment === "object"
+        ? (nested.payment as Record<string, unknown>)
+        : null;
+
+    const candidate =
+      payment?.checkoutUrl ??
+      payment?.sandboxCheckoutUrl ??
+      nestedPayment?.checkoutUrl ??
+      nestedPayment?.sandboxCheckoutUrl ??
+      source.init_point ??
+      source.sandbox_init_point ??
+      source.checkout_url ??
+      source.url ??
+      nested?.init_point ??
+      nested?.sandbox_init_point ??
+      nested?.checkout_url ??
+      nested?.url;
+
+    return typeof candidate === "string" && candidate.startsWith("http")
+      ? candidate
+      : null;
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus(null);
+    setErrorMessage(null);
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const payload = Object.fromEntries(formData.entries());
+    const payload = Object.fromEntries(formData.entries()) as Record<string, string>;
+    const selectedPayment = payload.payment ?? payload.paymaent;
+    payload.payment = selectedPayment;
+    payload.paymaent = selectedPayment;
 
     try {
-      const response = await fetch(
-        urlWebhook!,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      if (selectedPayment === "mercado_pago") {
+        const { data } = await api.post("/order-solicitation", payload);
+        const checkoutUrl = extractCheckoutUrl(data);
 
-      if (!response.ok) throw new Error("Request failed");
+        if (!checkoutUrl) {
+          setStatus("error");
+          setErrorMessage(
+            "A API nao retornou a URL de pagamento. Verifique o retorno do backend."
+          );
+          return;
+        }
+
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      await api.post("/order-solicitation", payload);
       setStatus("success");
       form.reset();
-    } catch {
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message?: string }>;
+      setErrorMessage(
+        axiosError.response?.data?.message ?? "Erro ao enviar. Tente novamente."
+      );
       setStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -104,7 +158,8 @@ export default function HomeOrderPage() {
                     type="radio"
                     name="payment"
                     className="mt-1 h-4 w-4"
-                    defaultChecked
+                    checked={paymentMethod === "balcao"}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
                     value="balcao"
                   />
                   <span>
@@ -122,6 +177,8 @@ export default function HomeOrderPage() {
                     type="radio"
                     name="payment"
                     className="mt-1 h-4 w-4"
+                    checked={paymentMethod === "mercado_pago"}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
                     value="mercado_pago"
                   />
                   <span>
@@ -135,6 +192,19 @@ export default function HomeOrderPage() {
                 </label>
               </div>
             </div>
+
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Valor (R$)</span>
+              <input
+                type="number"
+                name="valor"
+                min="0.01"
+                step="0.01"
+                placeholder="0,00"
+                required={paymentMethod === "mercado_pago"}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+              />
+            </label>
 
             <Button
               type="submit"
@@ -150,7 +220,7 @@ export default function HomeOrderPage() {
             )}
             {status === "error" && (
               <p className="text-center text-sm text-red-600">
-                Erro ao enviar. Tente novamente.
+                {errorMessage ?? "Erro ao enviar. Tente novamente."}
               </p>
             )}
           </form>
