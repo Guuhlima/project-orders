@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toTimestamp } from "@/shared/utils/date";
 import OrderCard from "./components/order-card";
 import { Order, getOrderCreatedAt, getOrderId } from "./_helpers/order-utils";
+import { io, Socket } from "socket.io-client"
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -53,8 +54,32 @@ export default function OrdersPage() {
 
     loadOrders();
 
+    const socket: Socket = io("http://localhost:3333/orders", {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Socket conectado:", socket.id);
+    });
+
+    socket.on("order.created", (newOrder: Order) => {
+      if (!isMounted) return;
+
+      setOrders((prev) => {
+        const exists = prev.some((o) => o.id === newOrder.id);
+        if (exists) return prev;
+        return [newOrder, ...prev];
+      });
+    });
+
+    socket.on("connect_error", () => {
+      loadOrders();
+    });
+
     return () => {
       isMounted = false;
+      socket.off("order.created");
+      socket.disconnect();
     };
   }, []);
 

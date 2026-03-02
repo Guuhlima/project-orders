@@ -3,13 +3,21 @@
 import api from "@/lib/api";
 import Button from "@/shared/components/Button";
 import { AxiosError } from "axios";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function HomeOrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("balcao");
   const [status, setStatus] = useState<null | "success" | "error">(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "success") {
+      router.push("/orders/success")
+    }
+  }, [status])
 
   function extractCheckoutUrl(responseData: unknown): string | null {
     if (!responseData || typeof responseData !== "object") return null;
@@ -213,11 +221,6 @@ export default function HomeOrderPage() {
             >
               {isSubmitting ? "Enviando..." : "Enviar pedido"}
             </Button>
-            {status === "success" && (
-              <p className="text-center text-sm text-emerald-600">
-                Pedido enviado com sucesso.
-              </p>
-            )}
             {status === "error" && (
               <p className="text-center text-sm text-red-600">
                 {errorMessage ?? "Erro ao enviar. Tente novamente."}
@@ -225,6 +228,7 @@ export default function HomeOrderPage() {
             )}
           </form>
         </div>
+
       </div>
     </main>
   );
