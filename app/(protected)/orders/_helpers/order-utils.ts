@@ -16,6 +16,14 @@ export function getOrderLabel(order: Order): string {
   return "Pedido sem descricao";
 }
 
+export function getOrderObservations(order: Order): string | null {
+  const candidates = [order.observacoes, order.observacao, order.notes, order.note];
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return null;
+}
+
 export function getCustomerName(order: Order): string {
   const candidates = [order.nome];
   for (const value of candidates) {

@@ -13,6 +13,8 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const apiWebsocket = process.env.NEXT_PUBLIC_URL_API!;
+
   useEffect(() => {
     let isMounted = true;
 
@@ -54,7 +56,7 @@ export default function OrdersPage() {
 
     loadOrders();
 
-    const socket: Socket = io("http://localhost:3333/orders", {
+    const socket: Socket = io(`${apiWebsocket}/orders`, {
       transports: ["websocket"],
     });
 
@@ -81,7 +83,7 @@ export default function OrdersPage() {
       socket.off("order.created");
       socket.disconnect();
     };
-  }, []);
+  }, [apiWebsocket]);
 
   const latestOrders = useMemo(() => {
     return [...orders]
