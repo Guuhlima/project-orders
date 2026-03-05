@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const AUTH_TOKEN_KEY = "auth_token";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_URL_API ?? "http://localhost:3333";
+const apiBaseUrl = process.env.NEXT_PUBLIC_URL_API!;
 
 const api = axios.create({
   baseURL: apiBaseUrl,
