@@ -1,6 +1,6 @@
 "use client";
 
-import api from "@/lib/api";
+import api, { API_BASE_URL } from "@/lib/api";
 import { AxiosError } from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { toTimestamp } from "@/shared/utils/date";
@@ -12,8 +12,6 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const apiWebsocket = process.env.NEXT_PUBLIC_URL_API!;
 
   useEffect(() => {
     let isMounted = true;
@@ -56,7 +54,7 @@ export default function OrdersPage() {
 
     loadOrders();
 
-    const socket: Socket = io(`${apiWebsocket}/orders`, {
+    const socket: Socket = io(`${API_BASE_URL}/orders`, {
       transports: ["websocket"],
     });
 
@@ -83,7 +81,7 @@ export default function OrdersPage() {
       socket.off("order.created");
       socket.disconnect();
     };
-  }, [apiWebsocket]);
+  }, []);
 
   const latestOrders = useMemo(() => {
     return [...orders]
